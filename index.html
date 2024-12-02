@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Downloader</title>
+  <style>
+    .progress { width: 100%; background: #f3f3f3; }
+    .progress-bar { height: 30px; background: green; width: 0%; }
+  </style>
+</head>
+<body>
+
+  <h1>Загрусчик контента</h1>
+  
+  <label for="keyword">Введите ключевое слово:</label>
+  <input type="text" id="keyword" />
+  <button onclick="fetchUrls()">Получить список URL</button>
+
+  <h3>Список URL:</h3>
+  <ul id="url-list"></ul>
+
+  <h3>Статус загрузки:</h3>
+  <div class="progress">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+
+  <h3>Загруженный контент:</h3>
+  <ul id="downloaded-content-list"></ul>
+
+  <script>
+    async function fetchUrls() {
+      const keyword = document.getElementById('keyword').value;
+      const response = await fetch('http://localhost:3000/keywords', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ keyword })
+      });
+
+      if (response.ok) {
+        const urls = await response.json();
+        const urlList = document.getElementById('url-list');
+        urlList.innerHTML = '';
+        urls.forEach(url => {
+          const li = document.createElement('li');
+          li.textContent = url;
+          li.onclick = () => downloadContent(url);
+          urlList.appendChild(li);
+        });
+      } else {
+        alert("Keyword not found.");
+      }
+    }
+
+    async function downloadContent(url) {
+      const progressBar = document.getElementById('progress-bar');
+      const response = await fetch('http://localhost:3000/keywords', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ keyword })
+      });
+
+      const reader = response.body.getReader();
+      const totalLength = response.headers.get('Content-Length');
+      let downloadedLength = 0;
+
+      const pump = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            // Saving content to LocalStorage
+            const content = new TextDecoder().decode(value);
+            localStorage.setItem(url, content);
+
+            // Update downloaded content list
+            const downloadedContentList = document.getElementById('downloaded-content-list');
+            const li = document.createElement('li');
+            li.textContent = url;
+            downloadedContentList.appendChild(li);
+            return;
+          }
+
+          downloadedLength += value.length;
+          const progress = (downloadedLength / totalLength) * 100;
+          progressBar.style.width = `${progress}%`;
+          pump();
+        });
+      };
+
+      pump();
+    }
+  </script>
+
+</body>
+</html>
